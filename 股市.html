@@ -1,0 +1,525 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高风险资本：全球股市模拟器 - By EnShuo Tang</title>
+    <style>
+        /* CSS 变量与基础样式 */
+        :root {
+            --bg-color: #0a0e14;
+            --card-bg: #161b22;
+            --primary-blue: #58a6ff;
+            --up-color: #39d353;
+            --down-color: #f85149;
+            --text-main: #c9d1d9;
+            --text-dim: #8b949e;
+            --border: #30363d;
+            --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+        }
+
+
+        body, html {
+            margin: 0; padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+
+        /* 主菜单动画背景 */
+        #main-menu {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle at center, #1a273a 0%, #0a0e14 100%);
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            z-index: 1000; transition: opacity 1s ease;
+        }
+
+
+        .menu-bg-anim {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0.3; z-index: -1;
+        }
+
+
+        .title-container { text-align: center; z-index: 10; }
+        h1.main-title {
+            font-size: 5rem; color: var(--primary-blue); margin: 0;
+            text-shadow: 0 0 30px rgba(88, 166, 255, 0.4);
+            letter-spacing: 12px; font-weight: 800;
+        }
+        .subtitle { color: var(--text-dim); letter-spacing: 4px; font-size: 1.2rem; }
+
+
+        .start-btn {
+            margin-top: 50px; padding: 18px 60px; font-size: 1.4rem;
+            background: transparent; border: 2px solid var(--primary-blue);
+            color: var(--primary-blue); cursor: pointer; transition: all 0.3s;
+            text-transform: uppercase; font-weight: bold; letter-spacing: 2px;
+        }
+        .start-btn:hover {
+            background: var(--primary-blue); color: #fff;
+            box-shadow: 0 0 40px var(--primary-blue);
+            transform: scale(1.05);
+        }
+
+
+        /* 游戏布局 */
+        #game-container {
+            display: none; height: 100vh;
+            grid-template-columns: 320px 1fr 300px;
+            grid-template-rows: 70px 1fr 40px;
+        }
+
+
+        /* 顶部导航 */
+        header {
+            grid-column: 1 / 4; background: #0d1117;
+            border-bottom: 1px solid var(--border);
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 0 25px;
+        }
+        .stat-box { display: flex; gap: 40px; }
+        .stat-label { font-size: 0.8rem; color: var(--text-dim); display: block; }
+        .stat-value { font-family: var(--font-mono); font-size: 1.3rem; color: var(--primary-blue); font-weight: bold; }
+
+
+        /* 左侧列表 */
+        #stock-sidebar {
+            grid-row: 2; border-right: 1px solid var(--border);
+            overflow-y: auto; background: #0d1117;
+        }
+        .stock-item {
+            padding: 16px 20px; border-bottom: 1px solid var(--border);
+            cursor: pointer; transition: 0.2s;
+        }
+        .stock-item:hover { background: #1c2128; }
+        .stock-item.active { background: #21262d; border-left: 4px solid var(--primary-blue); }
+        .stock-info-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
+        .symbol { font-weight: 800; font-family: var(--font-mono); font-size: 1.1rem; }
+        .price { font-family: var(--font-mono); }
+        .change-up { color: var(--up-color); }
+        .change-down { color: var(--down-color); }
+        .sector-tag { font-size: 0.75rem; color: var(--text-dim); }
+
+
+        /* 中间主显示区 */
+        main {
+            grid-row: 2; padding: 25px; display: flex; flex-direction: column;
+            background: var(--bg-color); gap: 20px;
+        }
+        .chart-wrapper {
+            flex: 1; border: 1px solid var(--border); background: #0d1117;
+            border-radius: 12px; position: relative; padding: 15px;
+        }
+        .company-header h2 { margin: 0; font-size: 2rem; color: #fff; }
+        .analysis-card {
+            height: 150px; background: var(--card-bg); border-radius: 12px;
+            padding: 20px; border: 1px solid var(--border);
+        }
+
+
+        /* 右侧交易区 */
+        aside {
+            grid-row: 2; padding: 25px; background: #0d1117;
+            border-left: 1px solid var(--border);
+        }
+        .trade-card {
+            background: var(--bg-color); border: 1px solid var(--border);
+            padding: 20px; border-radius: 12px;
+        }
+        .input-group { margin: 20px 0; }
+        .input-group label { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 8px; display: block; }
+        input.trade-input {
+            width: 100%; padding: 12px; background: #0d1117; border: 1px solid var(--border);
+            color: #fff; border-radius: 6px; font-size: 1.2rem; font-family: var(--font-mono);
+            box-sizing: border-box;
+        }
+        .trade-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        button.btn-buy { background: var(--up-color); color: #000; border: none; font-weight: bold; padding: 15px; border-radius: 6px; cursor: pointer; }
+        button.btn-sell { background: var(--down-color); color: #fff; border: none; font-weight: bold; padding: 15px; border-radius: 6px; cursor: pointer; }
+
+
+        /* 底部状态栏 */
+        footer {
+            grid-column: 1 / 4; background: #010409; color: var(--primary-blue);
+            display: flex; align-items: center; padding: 0 20px; font-size: 0.8rem;
+            border-top: 1px solid var(--border); font-family: var(--font-mono);
+        }
+
+
+        /* 游戏结束 */
+        #overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); display: none; z-index: 5000;
+            flex-direction: column; align-items: center; justify-content: center;
+        }
+        .bankrupt-title { font-size: 6rem; color: var(--down-color); font-weight: 900; }
+
+
+        /* 滚动条 */
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: #0d1117; }
+        ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+
+<div id="main-menu">
+    <canvas id="menuCanvas" class="menu-bg-anim"></canvas>
+    <div class="title-container">
+        <h1 class="main-title">HIGH CAPITAL</h1>
+        <p class="subtitle">QUANTITATIVE TRADING SIMULATOR v1.0</p>
+        <button class="start-btn" onclick="startGame()">Initialize Market</button>
+    </div>
+</div>
+
+
+<div id="game-container">
+    <header>
+        <div style="font-weight: 900; letter-spacing: 2px;">MARKET_TERMINAL_v1.0</div>
+        <div class="stat-box">
+            <div>
+                <span class="stat-label">AVAIL_CASH</span>
+                <span id="cash-val" class="stat-value">$10,000.00</span>
+            </div>
+            <div>
+                <span class="stat-label">NET_WORTH</span>
+                <span id="net-val" class="stat-value">$10,000.00</span>
+            </div>
+        </div>
+    </header>
+
+
+    <div id="stock-sidebar"></div>
+
+
+    <main>
+        <div class="company-header">
+            <h2 id="view-name">Select Asset</h2>
+            <span id="view-sector" style="color: var(--primary-blue); font-family: var(--font-mono);">Waiting for selection...</span>
+        </div>
+        <div class="chart-wrapper">
+            <canvas id="mainChart"></canvas>
+        </div>
+        <div class="analysis-card">
+            <h3 style="margin-top:0; color:var(--text-dim); font-size:0.9rem;">QUANT_ANALYSIS_ENGINE</h3>
+            <div id="analysis-report" style="font-family: var(--font-mono); line-height: 1.6;">
+                Select a stock to initiate real-time volatility analysis...
+            </div>
+        </div>
+    </main>
+
+
+    <aside>
+        <div class="trade-card">
+            <h3 style="margin-top:0;">EXECUTE_ORDER</h3>
+            <p style="font-size:0.8rem; color:var(--text-dim);">Portfolio Balance: <span id="owned-qty" style="color:#fff;">0</span> Shares</p>
+            
+            <div class="input-group">
+                <label>ORDER_QUANTITY</label>
+                <input type="number" id="trade-qty" class="trade-input" value="10" min="1">
+            </div>
+
+
+            <div class="trade-btns">
+                <button class="btn-buy" onclick="trade('buy')">BUY_LONG</button>
+                <button class="btn-sell" onclick="trade('sell')">SELL_SHORT</button>
+            </div>
+        </div>
+    </aside>
+
+
+    <footer>
+        <span id="ticker">MARKET STATUS: OPEN | TRADING SESSION: ACTIVE | API_LATENCY: 14ms | DATA_SOURCE: MONTE_CARLO_ENGINE</span>
+    </footer>
+</div>
+
+
+<div id="overlay">
+    <div class="bankrupt-title">BANKRUPT</div>
+    <p style="font-size: 1.5rem; letter-spacing: 5px;">LIQUIDATION COMPLETE. NET WORTH: $0</p>
+    <button class="start-btn" onclick="location.reload()">Re-capitalize</button>
+</div>
+
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    /**
+     * HIGH CAPITAL - GAME ENGINE
+     * Developer: EnShuo Tang
+     */
+
+
+    let cash = 10000;
+    let stocks = [];
+    let portfolio = {};
+    let activeIndex = -1;
+    let chart = null;
+    let gameLoop = null;
+
+
+    const sectors = [
+        "Quantum Computing", "Deep Sea Mining", "AI Neural Networks", "Space Tourism",
+        "Fusion Energy", "Cyber Security", "Bio-Engineering", "Solid State Batteries",
+        "Asteroid Prospecting", "FinTech", "Nano Technology", "Vertical Farming",
+        "Metaverse Infra", "Autonomous Vehicles", "Carbon Capture", "Neuro-Link Tech",
+        "Nuclear Recycling", "Smart Cities", "Genetic Therapy", "Graphene R&D",
+        "Orbital Logistics", "Deep-Fake Detection", "Water Desalination", "Hydrogen Fuel"
+    ];
+
+
+    const prefixes = ["Nova", "Apex", "Omni", "Void", "Cyber", "Prime", "Nano", "Flux", "Zenith", "Hyper"];
+    const suffixes = ["Dynamics", "Systems", "Labs", "Industries", "Corp", "Solutions", "Logic", "Group"];
+
+
+    // 初始化随机股市
+    function initMarket() {
+        stocks = [];
+        for (let i = 0; i < 24; i++) {
+            const p = prefixes[Math.floor(Math.random() * prefixes.length)];
+            const s = suffixes[Math.floor(Math.random() * suffixes.length)];
+            const name = `${p} ${s}`;
+            const symbol = (p.substring(0,2) + s.substring(0,2) + (i+10)).toUpperCase();
+            
+            // 每一个公司独特的波动基因
+            const basePrice = 50 + Math.random() * 450;
+            stocks.push({
+                symbol: symbol,
+                name: name,
+                sector: sectors[i],
+                price: basePrice,
+                history: Array.from({length: 50}, () => basePrice + (Math.random()-0.5)*20),
+                volatility: 0.01 + Math.random() * 0.04, // 波动率
+                drift: (Math.random() - 0.5) * 0.01,    // 长期趋势 (漂移)
+                change: 0
+            });
+            portfolio[symbol] = 0;
+        }
+    }
+
+
+    // 绘制菜单背景
+    function initMenuBg() {
+        const canvas = document.getElementById('menuCanvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+
+        const particles = Array.from({length: 80}, () => ({
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            vx: (Math.random() - 0.5) * 2,
+            vy: (Math.random() - 0.5) * 2
+        }));
+
+
+        function animate() {
+            ctx.clearRect(0,0,canvas.width, canvas.height);
+            ctx.strokeStyle = "rgba(88, 166, 255, 0.2)";
+            ctx.lineWidth = 1;
+            particles.forEach((p, i) => {
+                p.x += p.vx; p.y += p.vy;
+                if(p.x < 0 || p.x > canvas.width) p.vx *= -1;
+                if(p.y < 0 || p.y > canvas.height) p.vy *= -1;
+                
+                particles.slice(i+1).forEach(p2 => {
+                    const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+                    if(dist < 150) {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x, p.y);
+                        ctx.lineTo(p2.x, p2.y);
+                        ctx.stroke();
+                    }
+                });
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+    }
+
+
+    function startGame() {
+        document.getElementById('main-menu').style.opacity = '0';
+        setTimeout(() => {
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('game-container').style.display = 'grid';
+            initMarket();
+            renderList();
+            initChart();
+            startEngine();
+        }, 1000);
+    }
+
+
+    function renderList() {
+        const sidebar = document.getElementById('stock-sidebar');
+        sidebar.innerHTML = '';
+        stocks.forEach((s, i) => {
+            const div = document.createElement('div');
+            div.className = `stock-item ${activeIndex === i ? 'active' : ''}`;
+            div.onclick = () => selectStock(i);
+            
+            const sign = s.change >= 0 ? '+' : '';
+            const colorClass = s.change >= 0 ? 'change-up' : 'change-down';
+
+
+            div.innerHTML = `
+                <div class="stock-info-row">
+                    <span class="symbol">${s.symbol}</span>
+                    <span class="price">$${s.price.toFixed(2)}</span>
+                </div>
+                <div class="stock-info-row">
+                    <span class="sector-tag">${s.sector}</span>
+                    <span class="${colorClass}">${sign}${s.change.toFixed(2)}%</span>
+                </div>
+            `;
+            sidebar.appendChild(div);
+        });
+    }
+
+
+    function selectStock(i) {
+        activeIndex = i;
+        const s = stocks[i];
+        document.getElementById('view-name').innerText = `${s.name} (${s.symbol})`;
+        document.getElementById('view-sector').innerText = `SECTOR: ${s.sector.toUpperCase()}`;
+        document.getElementById('owned-qty').innerText = portfolio[s.symbol];
+        
+        // 生成虚假的“量化报告”
+        const trends = ["Strong Accummulation", "Aggressive Distribution", "Neutral Consolidation", "High Volatility Warning"];
+        const report = `HISTORICAL_VOL: ${(s.volatility*100).toFixed(2)}% | DRIFT_BIAS: ${s.drift > 0 ? 'BULLISH' : 'BEARISH'} | MARKET_SENTIMENT: ${trends[Math.floor(Math.random()*trends.length)]}`;
+        document.getElementById('analysis-report').innerText = report;
+
+
+        renderList();
+        updateChart();
+    }
+
+
+    function initChart() {
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        chart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: Array.from({length: 50}, (_, i) => i),
+                datasets: [{
+                    borderColor: '#58a6ff',
+                    borderWidth: 2,
+                    data: [],
+                    pointRadius: 0,
+                    fill: true,
+                    backgroundColor: 'rgba(88, 166, 255, 0.05)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: false,
+                scales: {
+                    x: { display: false },
+                    y: { grid: { color: '#30363d' }, ticks: { color: '#8b949e', font: { family: 'monospace' } } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+
+    function updateChart() {
+        if(activeIndex < 0) return;
+        const s = stocks[activeIndex];
+        chart.data.datasets[0].data = s.history;
+        chart.data.datasets[0].borderColor = s.change >= 0 ? '#39d353' : '#f85149';
+        chart.update();
+    }
+
+
+    // 蒙特卡洛引擎：模拟股市波动
+    function startEngine() {
+        gameLoop = setInterval(() => {
+            let portfolioValue = 0;
+
+
+            stocks.forEach(s => {
+                const prevPrice = s.price;
+                // 蒙特卡洛模拟核心：价格 = 价格 * (1 + 漂移 + 随机噪声 * 波动率)
+                const noise = (Math.random() - 0.5) * 2;
+                const dailyChange = s.drift + (noise * s.volatility);
+                s.price *= (1 + dailyChange);
+                
+                if(s.price < 0.1) s.price = 0.1; // 防止归零
+                
+                s.change = ((s.price - prevPrice) / prevPrice) * 100;
+                s.history.push(s.price);
+                if(s.history.length > 50) s.history.shift();
+
+
+                portfolioValue += portfolio[s.symbol] * s.price;
+
+
+                // 随机更改漂移趋势
+                if(Math.random() < 0.05) {
+                    s.drift = (Math.random() - 0.5) * 0.02;
+                }
+            });
+
+
+            const netWorth = cash + portfolioValue;
+            document.getElementById('cash-val').innerText = `$${cash.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            document.getElementById('net-val').innerText = `$${netWorth.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            
+            if(netWorth <= 0) {
+                clearInterval(gameLoop);
+                document.getElementById('overlay').style.display = 'flex';
+            }
+
+
+            renderList();
+            updateChart();
+        }, 1500);
+    }
+
+
+    function trade(type) {
+        if(activeIndex < 0) return;
+        const s = stocks[activeIndex];
+        const qty = parseInt(document.getElementById('trade-qty').value);
+        if(isNaN(qty) || qty <= 0) return;
+
+
+        if(type === 'buy') {
+            const cost = qty * s.price;
+            if(cash >= cost) {
+                cash -= cost;
+                portfolio[s.symbol] += qty;
+            } else {
+                flashError();
+            }
+        } else {
+            if(portfolio[s.symbol] >= qty) {
+                cash += qty * s.price;
+                portfolio[s.symbol] -= qty;
+            } else {
+                flashError();
+            }
+        }
+        document.getElementById('owned-qty').innerText = portfolio[s.symbol];
+    }
+
+
+    function flashError() {
+        document.querySelector('aside').style.backgroundColor = '#3e1b1b';
+        setTimeout(() => document.querySelector('aside').style.backgroundColor = '#0d1117', 200);
+    }
+
+
+    window.onload = initMenuBg;
+</script>
+</body>
+</html>
